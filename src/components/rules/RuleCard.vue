@@ -1,10 +1,10 @@
 <template>
   <div class="card gap-2 p-2 text-sm">
-    <div>
-      <span class="mr-2">{{ index }}.</span>
-      <span class="mr-2 capitalize">{{ rule.type }}</span>
+    <div class="flex min-h-6 items-center gap-2">
+      <span>{{ index }}.</span>
+      <span class="capitalize">{{ rule.type }}</span>
       <span
-        class="text-main mr-2"
+        class="text-main"
         v-if="rule.payload"
       >
         {{ rule.payload }}
@@ -15,6 +15,13 @@
       >
         {{ size }}
       </span>
+      <button
+        v-if="isUpdateableRuleSet"
+        :class="twMerge('btn btn-circle btn-xs', isUpdating ? 'animate-spin' : '')"
+        @click="updateRuleProviderClickHandler"
+      >
+        <ArrowPathIcon class="h-4 w-4" />
+      </button>
     </div>
     <div class="text-base-content/80 flex items-center gap-1">
       <ProxyName
@@ -40,15 +47,17 @@
 </template>
 
 <script setup lang="ts">
+import { updateRuleProviderAPI } from '@/api'
 import { useBounceOnVisible } from '@/composables/bouncein'
 import { NOT_CONNECTED } from '@/constant'
 import { getColorForLatency } from '@/helper'
 import { getLatencyByName, getNowProxyNodeName, proxyMap } from '@/store/proxies'
-import { ruleProviderList } from '@/store/rules'
+import { fetchRules, ruleProviderList } from '@/store/rules'
 import { displayLatencyInRule, displayNowNodeInRule } from '@/store/settings'
 import type { Rule } from '@/types'
-import { ArrowRightCircleIcon } from '@heroicons/vue/24/outline'
-import { computed } from 'vue'
+import { ArrowPathIcon, ArrowRightCircleIcon } from '@heroicons/vue/24/outline'
+import { twMerge } from 'tailwind-merge'
+import { computed, ref } from 'vue'
 import ProxyName from '../proxies/ProxyName.vue'
 
 const props = defineProps<{
@@ -68,6 +77,29 @@ const size = computed(() => {
 
   return props.rule.size
 })
+
+const isUpdating = ref(false)
+const isUpdateableRuleSet = computed(() => {
+  if (props.rule.type !== 'RuleSet') {
+    return false
+  }
+
+  const provider = ruleProviderList.value.find((provider) => provider.name === props.rule.payload)
+
+  if (!provider) {
+    return false
+  }
+  return provider.vehicleType !== 'Inline'
+})
+
+const updateRuleProviderClickHandler = async () => {
+  if (isUpdating.value) return
+
+  isUpdating.value = true
+  await updateRuleProviderAPI(props.rule.payload)
+  fetchRules()
+  isUpdating.value = false
+}
 
 useBounceOnVisible()
 </script>
